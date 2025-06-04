@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <bpf/libbpf.h>
-#include "cve2024_23651.skel.h"
+//#include "cve2024_23651.skel.h"
 #include "cve2024_23651.h"
 
 static volatile bool exiting = false;
