@@ -24,13 +24,13 @@ void handle_signal(int sig) {
 static int handle_event(void *ctx, void *data, size_t data_sz) {
     struct event_t *e = data;
 
-    // 의심 마운트 조건
+    // ?섏떖 留덉슫??議곌굔
     if ((e->flags & MS_BIND) ||
         strncmp(e->target, "/host", 5) == 0 ||
         strncmp(e->target, "/mnt", 4) == 0 ||
         strncmp(e->target, "/proc", 5) == 0 ||
         strncmp(e->target, "/sys", 4) == 0) {
-        printf("[MOUNT 🚨] PID=%d COMM=%s SOURCE=%s TARGET=%s FLAGS=0x%llx\n",
+        printf("[MOUNT ?슚] PID=%d COMM=%s SOURCE=%s TARGET=%s FLAGS=0x%llx\n",
                e->pid, e->comm, e->source, e->target, e->flags);
     } else {
         printf("[MOUNT] PID=%d COMM=%s SOURCE=%s TARGET=%s FLAGS=0x%llx\n",
