@@ -1,0 +1,35 @@
+# ring_buffer__new 
+  링버퍼 관리자 객체를 만든다.
+
+  정의
+  struct ring_buffer *ring_buffer__new(
+      int map_fd,                             커널에서 데이터를 보내는 링버퍼맵, 파일 디스크립터
+      ring_buffer_sample_fn sample_cb,        이벤트 생성시 호출되는 콜백함수 포인터
+      void *ctx,                              콜백함수로 전달할 사용자정의 컨텍스트 포인터, 대부분 NULL
+      const struct ring_buffer_opts *opts     링버퍼__opts의 구조체 포인터, 확장성 설정을 위한 설정값, 보통 NULL
+  );
+  
+    ring_buffer_sample_fn 함수 타입
+    typedef int (*ring_buffer_sample_fn)(void *ctx, void *data, size_t size);
+    *ctx:위에서 전달된 포인터
+    *data:커널 -> 유저로 전달된 이벤트 구조체
+    size:data의크기, (sizeof(struct event_t))등
+
+  반환값
+  성공:링버퍼 관리자 객체의 포인터 반환 
+  실패:NULL반환후 errno에 에러코드 설정
+
+  
+# ring_buffer__poll
+  링버퍼에 데이터 오는지 일정시간주기로 감시
+  
+  정의
+  int ring_buffer__poll(
+      struct ring_buffer *rb,                포인터 변수, 링버퍼에 데이터 생기면 *rb의 콜백함수 호출
+      int timeout_ms                         감시주기(ms초단위)
+  );
+  
+  반환값
+  성공:소비한 이벤트 수(최대 INT_MAX)
+  실패: 음수(오류리턴) 
+  

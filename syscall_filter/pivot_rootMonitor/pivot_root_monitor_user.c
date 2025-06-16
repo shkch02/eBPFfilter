@@ -21,12 +21,12 @@ void handle_signal(int sig) {
 static int handle_event(void *ctx, void *data, size_t data_sz) {
     struct event_t *e = data;
 
-    // 의심 경로 필터링 (간단 예시)
+    // ?섏떖 寃쎈줈 ?꾪꽣留?(媛꾨떒 ?덉떆)
     if (strncmp(e->new_root, "/host", 5) == 0 || strncmp(e->put_old, "/host", 5) == 0 ||
         strncmp(e->new_root, "/mnt", 4) == 0 || strncmp(e->put_old, "/mnt", 4) == 0 ||
         strncmp(e->new_root, "/proc", 5) == 0 || strncmp(e->put_old, "/proc", 5) == 0 ||
         strncmp(e->new_root, "/sys", 4) == 0 || strncmp(e->put_old, "/sys", 4) == 0) {
-        printf("[PIVOT_ROOT] 🚨 PID=%d COMM=%s new_root=%s put_old=%s\n",
+        printf("[PIVOT_ROOT] ?슚 PID=%d COMM=%s new_root=%s put_old=%s\n",
                e->pid, e->comm, e->new_root, e->put_old);
     } else {
         printf("[PIVOT_ROOT] PID=%d COMM=%s new_root=%s put_old=%s\n",

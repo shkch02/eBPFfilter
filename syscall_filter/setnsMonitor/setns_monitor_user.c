@@ -7,7 +7,7 @@
 
 static volatile sig_atomic_t exiting = 0;
 
-struct event_t {
+struct event_t { //구조체 선언
     __u32 pid;
     __u32 fd;
     __u64 nstype;
@@ -19,11 +19,11 @@ struct event_t {
 #define CLONE_NEWPID    0x20000000
 #define CLONE_NEWNET    0x40000000
 
-void handle_signal(int sig) {
+void handle_signal(int sig) { //종료 시그널
     exiting = 1;
 }
 
-static void print_flags(__u64 flags) {
+static void print_flags(__u64 flags) { //플래그
     if (flags & CLONE_NEWUSER) printf("CLONE_NEWUSER ");
     if (flags & CLONE_NEWNS)   printf("CLONE_NEWNS ");
     if (flags & CLONE_NEWPID)  printf("CLONE_NEWPID ");
@@ -46,7 +46,7 @@ int main() {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
 
-    skel = setns_monitor_bpf__open_and_load();
+    skel = setns_monitor_bpf__open_and_load(); //바이너리 파일 로드
     if (!skel) {
         fprintf(stderr, "failed to load skeleton\n");
         return 1;

@@ -15,9 +15,9 @@ struct event_t {
 };
 
 // 링버퍼 맵 선언 (max_entries = 16MiB)
-struct {
-    __uint(type, BPF_MAP_TYPE_RINGBUF);
-    __uint(max_entries, 1 << 24);
+struct {  
+    __uint(type, BPF_MAP_TYPE_RINGBUF); // 맵이 링버퍼 타입이고 
+    __uint(max_entries, 1 << 24);       //크기는 <<16mb(2^24)
 } events SEC(".maps");
 
 // __x64_sys_openat2 kprobe: x86_64 커널에서 openat2 진입 시점 훅
@@ -27,7 +27,7 @@ int trace_openat2(struct pt_regs *ctx) {
     // 두 번째 인자: const char *filename
     // 세 번째 인자: struct open_how *how (생략 가능)
     // 네 번째 인자: size_t size (생략)
-    const char *pathname = (const char *)PT_REGS_PARM2(ctx);
+    const char *pathname = (const char *)PT_REGS_PARM2(ctx); //ctx : 레지스터 구조체, PT_REGS_PARM은 레지스터인자 꺼내오는 함수
 
     struct event_t *e = bpf_ringbuf_reserve(&events, sizeof(*e), 0);
     if (!e) {

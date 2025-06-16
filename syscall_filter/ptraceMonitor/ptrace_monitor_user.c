@@ -7,10 +7,10 @@
 
 static volatile sig_atomic_t exiting = 0;
 
-struct event_t {
+struct event_t { //구조체 선언
     __u32 pid;
     __u32 target_pid;
-    long request;
+    long request; 
     char comm[16];
 };
 
@@ -22,7 +22,7 @@ void handle_signal(int sig) {
     exiting = 1;
 }
 
-static const char* req_to_str(long req) {
+static const char* req_to_str(long req) { //req를 문자열로 변환
     switch (req) {
         case PTRACE_ATTACH: return "PTRACE_ATTACH";
         case PTRACE_PEEKDATA: return "PTRACE_PEEKDATA";
@@ -31,12 +31,12 @@ static const char* req_to_str(long req) {
     }
 }
 
-static int handle_event(void *ctx, void *data, size_t data_sz) {
+static int handle_event(void *ctx, void *data, size_t data_sz) { //링버퍼 데이터 읽어서 프린트
     struct event_t *e = data;
     const char *req = req_to_str(e->request);
 
     if (e->request == PTRACE_ATTACH || e->request == PTRACE_POKEDATA) {
-        printf("[PTRACE 🚨] PID=%d COMM=%s tried %s on PID=%d\n",
+        printf("[PTRACE warning] PID=%d COMM=%s tried %s on PID=%d\n",
                e->pid, e->comm, req, e->target_pid);
     } else {
         printf("[PTRACE] PID=%d COMM=%s tried %s on PID=%d\n",
@@ -72,7 +72,7 @@ int main() {
 
     printf("Listening for ptrace()... Ctrl+C to stop\n");
     while (!exiting)
-        ring_buffer__poll(rb, 100);
+        ring_buffer__poll(rb, 100); //listing중, 링버퍼 풀 발생시 rb호출
 
     ring_buffer__free(rb);
     ptrace_monitor_bpf__destroy(skel);
