@@ -5,6 +5,9 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
+#include "common_maps.h"
+#include "common_event.h"
+
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 #define CLONE_NEWNS     0x00020000
@@ -15,7 +18,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define CLONE_NEWNET    0x40000000
 #define CLONE_NEWCGROUP 0x02000000
 
-struct event_t { //유저스페이스에 전달할 구조체
+/*struct event_t { //유저스페이스에 전달할 구조체
     __u32 pid;
     __u64 flags;
     char comm[16];
@@ -25,7 +28,7 @@ struct { //커널 - 유저스페이스 간 이벤트 전달 위한 링버퍼
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     __uint(max_entries, 1 << 24);
 } events SEC(".maps");
-
+*/ 
 SEC("kprobe/__x64_sys_clone")  // 또는 kprobe/sys_clone 으로 후킹
 int handle_clone(struct pt_regs *ctx) {
     struct event_t *e;
@@ -47,8 +50,10 @@ int handle_clone(struct pt_regs *ctx) {
     if (!e) return 0;
 
     e->pid = bpf_get_current_pid_tgid() >> 32;
-    e->flags = flags;
-    bpf_get_current_comm(&e->comm, sizeof(e->comm));
+    e->type = EVT_CLONE;
+    e->ts_ns = bpf_ktime_get_ns();
+    e->data.clone.flags = flags;
+    bpf_get_current_comm(&e->data.clone.comm, sizeof(e->data.clone.comm));
     // 감지 결과 채워서 제출
     bpf_ringbuf_submit(e, 0);
     return 0;

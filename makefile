@@ -1,28 +1,58 @@
-# 최상위 Makefile (project root)
+# Top-level Makefile
 
-BPF_SRCS   := $(shell find syscall_filter -type f -name '*.bpf.c')
-BPF_OBJS   := $(BPF_SRCS:.bpf.c=.bpf.o)
-SKEL_HDRS  := $(BPF_SRCS:.bpf.c=.skel.h)
-TEST_BINS  := $(BPF_SRCS:.bpf.c=_test)
+# 모니터 서브디렉터리 리스트
+BPF_DIRS := syscall_filter/cloneMonitor \
+            syscall_filter/unshareMonitor \
+            syscall_filter/mountMonitor \
+            syscall_filter/openat2Monitor \
+            syscall_filter/pivot_rootMonitor \
+            syscall_filter/ptraceMonitor \
+            syscall_filter/setnsMonitor \
+            syscall_filter/symlinkatMonitor \
+            syscall_filter/capsetMonitor
 
-INCLUDE    := include
-CFLAGS     := -I$(INCLUDE) -I/usr/include -O2 -g
-LDFLAGS    := -lbpf -lelf -lz
+# 사용자 로더 바이너리 이름
+USER_LOADER := monitor_loader
 
-all: agent $(TEST_BINS)
+# 공통 인클루드 디렉터리
+INCLUDE_DIR := include
 
-# 1) .bpf.c → .bpf.o + 스켈레톤 헤더
-%.bpf.o: %.bpf.c
-	clang -target bpf $(CFLAGS) -c $< -o $@
-	bpftool gen skeleton $@ > $(INCLUDE)/$(notdir $*).skel.h
+CFLAGS := -O2 -g -std=gnu17 -I$(INCLUDE_DIR)
+LIBS   := -lbpf -lelf -lz -lrdkafka
 
-# 2) per-monitor 테스트 바이너리
-%_test: %.bpf.o test_harness.c
-	gcc $(CFLAGS) $< $<:.bpf.o=.skel.h test_harness.c -o $@ $(LDFLAGS)
+.PHONY: all bpf user_loader clean
 
-# 3) agent_main + 모든 .bpf.o 링크
-agent: agent_main.c $(BPF_OBJS)
-	gcc $(CFLAGS) $^ -o $@ $(LDFLAGS)
+all: bpf user_loader
 
+# 1) 각 BPF 서브디렉터리에서 Makefile 실행
+bpf:
+	@for d in $(BPF_DIRS); do \
+	  echo "---- building $$d ----"; \
+	  $(MAKE) -C $$d; \
+	done
+
+# 2) monitor_loader 컴파일
+user_loader: $(USER_LOADER)
+
+$(USER_LOADER): monitor_loader.c \
+    $(INCLUDE_DIR)/clone_monitor.skel.h \
+    $(INCLUDE_DIR)/unshare_monitor.skel.h \
+    $(INCLUDE_DIR)/mount_monitor.skel.h \
+    $(INCLUDE_DIR)/openat2_monitor.skel.h \
+    $(INCLUDE_DIR)/pivot_root_monitor.skel.h \
+    $(INCLUDE_DIR)/ptrace_monitor.skel.h \
+    $(INCLUDE_DIR)/setns_monitor.skel.h \
+    $(INCLUDE_DIR)/symlinkat_monitor.skel.h \
+    $(INCLUDE_DIR)/capset_monitor.skel.h \
+    $(INCLUDE_DIR)/common_event.h
+	@echo "---- building $@ ----"
+	gcc $(CFLAGS) $< -o $@ $(LIBS)
+
+# 3) clean: 서브디렉터리와 탑-레벨 둘 다
 clean:
-	rm -f $(BPF_OBJS) $(SKEL_HDRS) $(TEST_BINS) agent
+	@for d in $(BPF_DIRS); do \
+	  echo "---- clean $$d ----"; \
+	  $(MAKE) -C $$d clean; \
+	done
+	@echo "---- clean top-level ----"
+	rm -f $(USER_LOADER)

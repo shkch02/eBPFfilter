@@ -11,8 +11,12 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
+#include "common_maps.h"
+#include "common_event.h"
+
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
+/*
 struct event_t { //유저스페이스로 넘길 구조체 선언
     __u32 pid;
     __u64 flags;
@@ -24,6 +28,7 @@ struct { //유저스페이스로 데이터 넘길 링버퍼 선언
     __uint(max_entries, 1 << 24);
 } events SEC(".maps");
 
+*/
 SEC("kprobe/__x64_sys_unshare") //__64_sys_unshare에 후킹, unshare콜 감지
 int handle_unshare(struct pt_regs *ctx) {
     struct event_t *e;
@@ -36,8 +41,10 @@ int handle_unshare(struct pt_regs *ctx) {
     if (!e) return 0;
 
     e->pid = bpf_get_current_pid_tgid() >> 32; //상위 32는 unshare를 호출한 프로세스의 pid, pid를 e구조체에 저장
-    e->flags = flags; //플래그저장
-    bpf_get_current_comm(&e->comm, sizeof(e->comm)); //프로세스 이름 저장
+    e->type = EVT_UNSHARE;
+    e->ts_ns  = bpf_ktime_get_ns();
+    e->data.unshare.flags = flags; //플래그저장
+    bpf_get_current_comm(&e->data.unshare.comm, sizeof(e->data.unshare.comm)); //프로세스 이름 저장
 
     bpf_ringbuf_submit(e, 0); //유저스페이스로 구조체 전달
     return 0;

@@ -5,8 +5,11 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
+#include "common_maps.h"
+#include "common_event.h"
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
+/* 공통헤더로 선언
 // 이벤트 전달용 구조체
 struct event_t {
     __u32 pid;
@@ -19,6 +22,7 @@ struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF); // 맵이 링버퍼 타입이고 
     __uint(max_entries, 1 << 24);       //크기는 <<16mb(2^24)
 } events SEC(".maps");
+*/
 
 // __x64_sys_openat2 kprobe: x86_64 커널에서 openat2 진입 시점 훅
 SEC("kprobe/__x64_sys_openat2")
@@ -35,9 +39,11 @@ int trace_openat2(struct pt_regs *ctx) {
     }
 
     e->pid = bpf_get_current_pid_tgid() >> 32;
-    bpf_get_current_comm(&e->comm, sizeof(e->comm));
+    e->type = EVT_OPENAT2;
+    e->ts_ns  = bpf_ktime_get_ns();
+    bpf_get_current_comm(&e->data.openat2.comm, sizeof(e->data.openat2.comm));
     // 사용자 공간에서 전달된 문자열 복사
-    bpf_probe_read_user_str(&e->filename, sizeof(e->filename), pathname);
+    bpf_probe_read_user_str(&e->data.openat2.filename, sizeof(e->data.openat2.filename), pathname);
 
     bpf_ringbuf_submit(e, 0);
     return 0;

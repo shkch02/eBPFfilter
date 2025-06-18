@@ -4,8 +4,11 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
-char LICENSE[] SEC("license") = "Dual BSD/GPL";
+#include "common_maps.h"
+#include "common_event.h"
 
+char LICENSE[] SEC("license") = "Dual BSD/GPL";
+/* 공통헤더로 처리
 // 사용자 데이터 포맷 추출 구조체 (capability 설정 정보 구조체)
 struct cap_data_t {
     __u32 effective; //활성화된 권한
@@ -18,12 +21,13 @@ struct event_t {
     __u32 pid;
     char comm[16]; //프로세스 명
     struct cap_data_t caps[2]; // index 0: current thread, index 1: bounding set (커널 구현에 따라 해석)
-};
+}; 
 
 struct { //링버퍼 맵 선언
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     __uint(max_entries, 1 << 24);
 } events SEC(".maps");
+*/
 
 SEC("kprobe/__x64_sys_capset") //capset 후킹
 int trace_capset(struct pt_regs *ctx) {
@@ -34,10 +38,11 @@ int trace_capset(struct pt_regs *ctx) {
     if (!e) return 0;
 
     e->pid = bpf_get_current_pid_tgid() >> 32; // 유저스페이스로 전송위한 값 저장
-    bpf_get_current_comm(&e->comm, sizeof(e->comm));
-
-    bpf_probe_read_user(&e->caps[0], sizeof(struct cap_data_t), data_ptr);
-    bpf_probe_read_user(&e->caps[1], sizeof(struct cap_data_t), data_ptr + sizeof(struct cap_data_t));
+    e->type = EVT_CLONE;
+    e->ts_ns  = bpf_ktime_get_ns();    
+    bpf_get_current_comm(&e->data.capset.comm, sizeof(e->data.capset.comm));
+    bpf_probe_read_user(&e->data.capset.caps[0], sizeof(struct cap_data_t), data_ptr);
+    bpf_probe_read_user(&e->data.capset.caps[1], sizeof(struct cap_data_t), data_ptr + sizeof(struct cap_data_t));
 
     bpf_ringbuf_submit(e, 0); //링버퍼로 제출
     return 0;

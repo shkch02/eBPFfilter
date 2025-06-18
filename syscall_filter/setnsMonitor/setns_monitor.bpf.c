@@ -4,6 +4,9 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
+#include "common_maps.h"
+#include "common_event.h"
+
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 // CLONE_NEW* 상수 정의
@@ -15,6 +18,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define CLONE_NEWNET    0x40000000
 #define CLONE_NEWCGROUP 0x02000000
 
+/*
 struct event_t {
     __u32 pid;
     __u32 fd;
@@ -26,6 +30,7 @@ struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     __uint(max_entries, 1 << 24);
 } events SEC(".maps");
+*/
 
 SEC("kprobe/__x64_sys_setns")
 int handle_setns(struct pt_regs *ctx) {
@@ -40,9 +45,11 @@ int handle_setns(struct pt_regs *ctx) {
     if (!e) return 0;
 
     e->pid = bpf_get_current_pid_tgid() >> 32;
-    e->fd = fd;
-    e->nstype = nstype;
-    bpf_get_current_comm(&e->comm, sizeof(e->comm));
+    e->type = EVT_SETNS;
+    e->ts_ns  = bpf_ktime_get_ns();
+    e->data.setns.fd = fd;
+    e->data.setns.nstype = nstype;
+    bpf_get_current_comm(&e->data.setns.comm, sizeof(e->data.setns.comm));
 
     bpf_ringbuf_submit(e, 0);
     return 0;
