@@ -2,8 +2,16 @@
 #include <librdkafka/rdkafka.h>
 #include "monitor.skel.h"
 #include "common_event.h"
+
 #include "clone_monitor.skel.h"
 #include "unshare_monitor.skel.h"
+#include "capset_monitor.skel.h"
+#include "mount_monitor.skel.h"
+#include "openat2_monitor.skel.h"
+#include "pivot_root_monitor.skel.h"
+#include "ptrace_monitor.skel.h"
+#include "setns_monitor.skel.h"
+#include "symlinkat_monitor.skel.h"
 
 static rd_kafka_t *rk;
 
