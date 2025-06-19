@@ -1,58 +1,45 @@
 # Top-level Makefile
 
-# 모니터 서브디렉터리 리스트
-BPF_DIRS := syscall_filter/cloneMonitor \
-            syscall_filter/unshareMonitor \
-            syscall_filter/mountMonitor \
-            syscall_filter/openat2Monitor \
-            syscall_filter/pivot_rootMonitor \
-            syscall_filter/ptraceMonitor \
-            syscall_filter/setnsMonitor \
-            syscall_filter/symlinkatMonitor \
-            syscall_filter/capsetMonitor
+BPF_SOURCES := $(wildcard syscall_filter/*Monitor/*.bpf.c)
+BPF_OBJS    := $(BPF_SOURCES:.bpf.c=.bpf.o)
+BPF_SKELS   := $(BPF_OBJS:.bpf.o=.skel.h)
 
-# 사용자 로더 바이너리 이름
 USER_LOADER := monitor_loader
-
-# 공통 인클루드 디렉터리
 INCLUDE_DIR := include
 
-CFLAGS := -O2 -g -std=gnu17 -I$(INCLUDE_DIR)
-LIBS   := -lbpf -lelf -lz -lrdkafka
+CFLAGS      := -O2 -g -std=gnu17 -I$(INCLUDE_DIR)
+BPF_CFLAGS  := -O2 -g -std=gnu17 -I$(INCLUDE_DIR) -target bpf
+LIBS        := -lbpf -lelf -lz -lrdkafka
 
-.PHONY: all bpf user_loader clean
+.PHONY: all bpf elf skel user_loader clean
 
-all: bpf user_loader
+all: bpf skel user_loader
 
-# 1) 각 BPF 서브디렉터리에서 Makefile 실행
-bpf:
-	@for d in $(BPF_DIRS); do \
-	  echo "---- building $$d ----"; \
-	  $(MAKE) -C $$d; \
-	done
+# 1) step: 각 .bpf.c → .bpf.o (BPF 전용 오브젝트)
+bpf: $(BPF_OBJS)
 
-# 2) monitor_loader 컴파일
+%.bpf.o: %.bpf.c
+	clang $(BPF_CFLAGS) -c $< -o $@
+
+# 3) step: bpftool로 skeleton 헤더 생성
+skel: $(MONITOR_SKEL)
+
+%.skel.h: %.bpf.o | $(INCLUDE_DIR)
+	@echo "GEN SKEL HDR $@"
+	@which bpftool >/dev/null 2>&1 && \
+	  bpftool gen skeleton $< > $(INCLUDE_DIR)/$(notdir $@) || \
+	  /usr/lib/linux-tools/$(shell uname -r)/bpftool gen	 skeleton $< > $(INCLUDE_DIR)/$(notdir $@)
+
+$(INCLUDE_DIR):
+	mkdir -p $@
+
+# 4) 유저 로더 컴파일
 user_loader: $(USER_LOADER)
 
-$(USER_LOADER): monitor_loader.c \
-    $(INCLUDE_DIR)/clone_monitor.skel.h \
-    $(INCLUDE_DIR)/unshare_monitor.skel.h \
-    $(INCLUDE_DIR)/mount_monitor.skel.h \
-    $(INCLUDE_DIR)/openat2_monitor.skel.h \
-    $(INCLUDE_DIR)/pivot_root_monitor.skel.h \
-    $(INCLUDE_DIR)/ptrace_monitor.skel.h \
-    $(INCLUDE_DIR)/setns_monitor.skel.h \
-    $(INCLUDE_DIR)/symlinkat_monitor.skel.h \
-    $(INCLUDE_DIR)/capset_monitor.skel.h \
-    $(INCLUDE_DIR)/common_event.h
-	@echo "---- building $@ ----"
+$(USER_LOADER): monitor_loader.c $(BPF_SKEL) $(INCLUDE_DIR)/common_event.h
+	@echo "CC USER LOADER $@"
 	gcc $(CFLAGS) $< -o $@ $(LIBS)
 
-# 3) clean: 서브디렉터리와 탑-레벨 둘 다
+# 5) clean
 clean:
-	@for d in $(BPF_DIRS); do \
-	  echo "---- clean $$d ----"; \
-	  $(MAKE) -C $$d clean; \
-	done
-	@echo "---- clean top-level ----"
-	rm -f $(USER_LOADER)
+	rm -f $(BPF_OBJS) $(MONITOR_ELF) $(MONITOR_SKEL) $(USER_LOADER)
