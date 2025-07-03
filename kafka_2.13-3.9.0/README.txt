@@ -10,7 +10,8 @@ $bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic syscall
 
 
 
-###노드js 서버 띄웠을시,
+###노드js 서버 띄웠을시 by  npm run start:dev
+
 
 카프카 프로듀서 생성
 $bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic syscall_events
